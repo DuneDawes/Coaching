@@ -1,0 +1,371 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>IHS · 3D Vial</title>
+  <style>
+    :root {
+      --bg: #050805;
+      --green: #22c55e;
+      --green-dim: #16a34a;
+      --text: #e8f5e9;
+      --muted: #8fa393;
+    }
+    * { box-sizing: border-box; margin: 0; padding: 0; }
+    html, body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      background: var(--bg);
+      color: var(--text);
+      font-family: "DM Sans", ui-sans-serif, system-ui, sans-serif;
+    }
+    #c { display: block; width: 100%; height: 100%; touch-action: none; }
+    .ui {
+      position: absolute;
+      inset: 0;
+      pointer-events: none;
+      display: flex;
+      flex-direction: column;
+      justify-content: space-between;
+      padding: 22px 24px 18px;
+    }
+    .top {
+      display: flex;
+      justify-content: space-between;
+      align-items: flex-start;
+      gap: 16px;
+    }
+    .kicker {
+      font-size: 11px;
+      letter-spacing: 2.4px;
+      text-transform: uppercase;
+      color: var(--green);
+      font-weight: 700;
+    }
+    h1 {
+      font-size: clamp(20px, 3.2vw, 28px);
+      font-weight: 700;
+      letter-spacing: -0.5px;
+      margin-top: 6px;
+    }
+    .hint {
+      font-size: 12px;
+      color: var(--muted);
+      margin-top: 6px;
+    }
+    .pills {
+      pointer-events: auto;
+      display: flex;
+      flex-wrap: wrap;
+      gap: 8px;
+      justify-content: center;
+    }
+    button.pill {
+      appearance: none;
+      border: 1px solid #1f3d28;
+      background: #0b120c;
+      color: var(--text);
+      font: inherit;
+      font-size: 12px;
+      font-weight: 600;
+      letter-spacing: 0.3px;
+      padding: 9px 14px;
+      border-radius: 999px;
+      cursor: pointer;
+      transition: border-color .2s, background .2s, color .2s;
+    }
+    button.pill:hover { border-color: var(--green); color: #fff; }
+    button.pill.active {
+      background: var(--green);
+      border-color: var(--green);
+      color: #041106;
+    }
+    .embed .branding { display: none; }
+  </style>
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link href="https://fonts.googleapis.com/css2?family=DM+Sans:wght@500;600;700&display=swap" rel="stylesheet" />
+  <script type="importmap">
+  {
+    "imports": {
+      "three": "https://unpkg.com/three@0.170.0/build/three.module.js",
+      "three/addons/": "https://unpkg.com/three@0.170.0/examples/jsm/"
+    }
+  }
+  </script>
+</head>
+<body>
+  <canvas id="c"></canvas>
+  <div class="ui">
+    <div class="top branding">
+      <div>
+        <div class="kicker">Innovative Health Solutions</div>
+        <h1>Pharmaceutical-grade vial</h1>
+        <p class="hint">Drag to rotate · Scroll to zoom</p>
+      </div>
+    </div>
+    <div class="pills" id="pills"></div>
+  </div>
+  <script type="module">
+    import * as THREE from "three";
+    import { OrbitControls } from "three/addons/controls/OrbitControls.js";
+    import { RoomEnvironment } from "three/addons/environments/RoomEnvironment.js";
+
+    const PRODUCTS = [
+      { id: "trt", name: "TRT", title: "Testosterone Cypionate", sub: "200 mg/mL  ·  10 mL", color: "#1f8a46" },
+      { id: "sema", name: "Weight Loss", title: "Semaglutide", sub: "2.4 mg  ·  multi-dose", color: "#15936a" },
+      { id: "pep", name: "Peptides", title: "BPC-157", sub: "5 mg  ·  lyophilized", color: "#2bb36a" },
+      { id: "nad", name: "Longevity", title: "NAD+", sub: "500 mg  ·  sterile", color: "#0f6b3c" }
+    ];
+
+    const isEmbed = new URLSearchParams(location.search).has("embed");
+    if (isEmbed) document.body.classList.add("embed");
+
+    const canvas = document.getElementById("c");
+    const renderer = new THREE.WebGLRenderer({ canvas, antialias: true, alpha: false });
+    renderer.setPixelRatio(Math.min(devicePixelRatio, 2));
+    renderer.setSize(innerWidth, innerHeight, false);
+    renderer.toneMapping = THREE.ACESFilmicToneMapping;
+    renderer.toneMappingExposure = 1.05;
+    renderer.outputColorSpace = THREE.SRGBColorSpace;
+
+    const scene = new THREE.Scene();
+    scene.background = new THREE.Color(0x050805);
+    scene.fog = new THREE.Fog(0x050805, 8, 16);
+
+    const camera = new THREE.PerspectiveCamera(38, innerWidth / innerHeight, 0.1, 40);
+    camera.position.set(2.15, 0.55, 3.4);
+
+    const controls = new OrbitControls(camera, canvas);
+    controls.enableDamping = true;
+    controls.dampingFactor = 0.06;
+    controls.autoRotate = true;
+    controls.autoRotateSpeed = 0.9;
+    controls.minDistance = 2.2;
+    controls.maxDistance = 6.5;
+    controls.minPolarAngle = 0.35;
+    controls.maxPolarAngle = Math.PI / 1.55;
+    controls.target.set(0, 0.15, 0);
+    controls.update();
+
+    const pmrem = new THREE.PMREMGenerator(renderer);
+    scene.environment = pmrem.fromScene(new RoomEnvironment(), 0.04).texture;
+
+    scene.add(new THREE.HemisphereLight(0xb7ffd0, 0x08140c, 0.55));
+    const key = new THREE.DirectionalLight(0xffffff, 1.35);
+    key.position.set(3.2, 4.4, 2.4);
+    scene.add(key);
+    const rim = new THREE.DirectionalLight(0x22c55e, 1.1);
+    rim.position.set(-3.5, 1.2, -2.8);
+    scene.add(rim);
+    const fill = new THREE.PointLight(0x7dffb0, 6, 12, 2);
+    fill.position.set(-1.4, 0.2, 2.2);
+    scene.add(fill);
+
+    const floor = new THREE.Mesh(
+      new THREE.CircleGeometry(3.2, 64),
+      new THREE.MeshStandardMaterial({ color: 0x07110a, roughness: 0.55, metalness: 0.15 })
+    );
+    floor.rotation.x = -Math.PI / 2;
+    floor.position.y = -1.22;
+    scene.add(floor);
+
+    const ring = new THREE.Mesh(
+      new THREE.RingGeometry(0.85, 1.15, 64),
+      new THREE.MeshBasicMaterial({ color: 0x22c55e, transparent: true, opacity: 0.18, side: THREE.DoubleSide })
+    );
+    ring.rotation.x = -Math.PI / 2;
+    ring.position.y = -1.21;
+    scene.add(ring);
+
+    const glass = new THREE.MeshPhysicalMaterial({
+      color: 0xe8fff0,
+      metalness: 0.02,
+      roughness: 0.06,
+      transmission: 0.92,
+      thickness: 0.55,
+      ior: 1.48,
+      transparent: true,
+      opacity: 1,
+      envMapIntensity: 1.3,
+      clearcoat: 1,
+      clearcoatRoughness: 0.08
+    });
+
+    const metal = new THREE.MeshStandardMaterial({
+      color: 0xc9d0d4,
+      metalness: 0.95,
+      roughness: 0.22
+    });
+
+    const rubber = new THREE.MeshStandardMaterial({
+      color: 0x1a1f1c,
+      roughness: 0.7,
+      metalness: 0.05
+    });
+
+    const liquidMat = new THREE.MeshPhysicalMaterial({
+      color: 0x1f8a46,
+      roughness: 0.12,
+      metalness: 0.0,
+      transmission: 0.45,
+      thickness: 1.1,
+      transparent: true,
+      opacity: 0.86,
+      ior: 1.36
+    });
+
+    const vial = new THREE.Group();
+    scene.add(vial);
+
+    const body = new THREE.Mesh(new THREE.CylinderGeometry(0.42, 0.42, 1.72, 64, 1, true), glass);
+    body.position.y = -0.08;
+    vial.add(body);
+
+    const innerWall = new THREE.Mesh(
+      new THREE.CylinderGeometry(0.385, 0.385, 1.68, 64, 1, true),
+      new THREE.MeshPhysicalMaterial({
+        color: 0xffffff,
+        roughness: 0.04,
+        transmission: 0.95,
+        thickness: 0.12,
+        transparent: true,
+        opacity: 0.22,
+        side: THREE.BackSide
+      })
+    );
+    innerWall.position.y = -0.08;
+    vial.add(innerWall);
+
+    const bottom = new THREE.Mesh(new THREE.SphereGeometry(0.42, 64, 32, 0, Math.PI * 2, Math.PI / 2, Math.PI / 2), glass);
+    bottom.position.y = -0.94;
+    vial.add(bottom);
+
+    const baseDisc = new THREE.Mesh(new THREE.CircleGeometry(0.42, 64), glass);
+    baseDisc.rotation.x = Math.PI / 2;
+    baseDisc.position.y = -1.05;
+    vial.add(baseDisc);
+
+    const shoulder = new THREE.Mesh(new THREE.CylinderGeometry(0.22, 0.42, 0.22, 64), glass);
+    shoulder.position.y = 0.89;
+    vial.add(shoulder);
+
+    const neck = new THREE.Mesh(new THREE.CylinderGeometry(0.175, 0.2, 0.34, 48), glass);
+    neck.position.y = 1.15;
+    vial.add(neck);
+
+    const flange = new THREE.Mesh(new THREE.CylinderGeometry(0.23, 0.23, 0.07, 48), glass);
+    flange.position.y = 1.34;
+    vial.add(flange);
+
+    const stopper = new THREE.Mesh(new THREE.CylinderGeometry(0.155, 0.155, 0.16, 32), rubber);
+    stopper.position.y = 1.38;
+    vial.add(stopper);
+
+    const cap = new THREE.Mesh(new THREE.CylinderGeometry(0.24, 0.24, 0.16, 48), metal);
+    cap.position.y = 1.46;
+    vial.add(cap);
+
+    const capTop = new THREE.Mesh(new THREE.CylinderGeometry(0.13, 0.18, 0.045, 32), metal);
+    capTop.position.y = 1.555;
+    vial.add(capTop);
+
+    const liquid = new THREE.Mesh(new THREE.CylinderGeometry(0.36, 0.36, 1.12, 64), liquidMat);
+    liquid.position.y = -0.28;
+    vial.add(liquid);
+
+    const meniscus = new THREE.Mesh(
+      new THREE.SphereGeometry(0.36, 48, 24, 0, Math.PI * 2, 0, Math.PI / 2.6),
+      liquidMat
+    );
+    meniscus.position.y = 0.27;
+    vial.add(meniscus);
+
+    const labelCanvas = document.createElement("canvas");
+    labelCanvas.width = 1024;
+    labelCanvas.height = 512;
+    const labelTex = new THREE.CanvasTexture(labelCanvas);
+    labelTex.colorSpace = THREE.SRGBColorSpace;
+    labelTex.anisotropy = 8;
+
+    const labelMat = new THREE.MeshStandardMaterial({
+      map: labelTex,
+      roughness: 0.55,
+      metalness: 0.0
+    });
+    const label = new THREE.Mesh(new THREE.CylinderGeometry(0.426, 0.426, 0.82, 64, 1, true, Math.PI * 0.22, Math.PI * 1.56), labelMat);
+    label.position.y = -0.12;
+    vial.add(label);
+
+    function drawLabel(product) {
+      const ctx = labelCanvas.getContext("2d");
+      ctx.fillStyle = "#f4f7f4";
+      ctx.fillRect(0, 0, 1024, 512);
+      ctx.fillStyle = product.color;
+      ctx.fillRect(0, 0, 1024, 78);
+      ctx.fillRect(0, 460, 1024, 52);
+
+      ctx.fillStyle = "#041106";
+      ctx.font = "700 36px sans-serif";
+      ctx.fillText("INNOVATIVE HEALTH SOLUTIONS", 70, 140);
+      ctx.fillStyle = "#1a1a1a";
+      ctx.font = "700 64px sans-serif";
+      ctx.fillText(product.title.toUpperCase(), 70, 230);
+      ctx.fillStyle = "#166534";
+      ctx.font = "600 40px sans-serif";
+      ctx.fillText(product.sub, 70, 300);
+      ctx.fillStyle = "#444";
+      ctx.font = "500 26px sans-serif";
+      ctx.fillText("Rx only   ·   Sterile multi-dose vial   ·   USP", 70, 360);
+      ctx.fillText("Greater Seattle  ·  Telehealth US", 70, 404);
+
+      ctx.fillStyle = "#041106";
+      ctx.font = "700 22px sans-serif";
+      ctx.fillText("IHS  ·  CLINIC GRADE", 70, 494);
+      labelTex.needsUpdate = true;
+    }
+
+    let current = PRODUCTS[0];
+    drawLabel(current);
+    liquidMat.color.set(current.color);
+
+    const pills = document.getElementById("pills");
+    PRODUCTS.forEach((p, i) => {
+      const b = document.createElement("button");
+      b.className = "pill" + (i === 0 ? " active" : "");
+      b.textContent = p.name;
+      b.onclick = () => {
+        current = p;
+        drawLabel(p);
+        liquidMat.color.set(p.color);
+        [...pills.children].forEach((el) => el.classList.remove("active"));
+        b.classList.add("active");
+      };
+      pills.appendChild(b);
+    });
+
+    function onResize() {
+      const w = innerWidth;
+      const h = innerHeight;
+      camera.aspect = w / h;
+      camera.updateProjectionMatrix();
+      renderer.setSize(w, h, false);
+    }
+    addEventListener("resize", onResize);
+
+    canvas.addEventListener("pointerdown", () => { controls.autoRotate = false; });
+
+    const clock = new THREE.Clock();
+    (function tick() {
+      const t = clock.getElapsedTime();
+      liquid.position.y = -0.28 + Math.sin(t * 1.4) * 0.012;
+      meniscus.position.y = 0.27 + Math.sin(t * 1.4) * 0.012;
+      ring.rotation.z = t * 0.15;
+      controls.update();
+      renderer.render(scene, camera);
+      requestAnimationFrame(tick);
+    })();
+  </script>
+</body>
+</html>
